@@ -1,0 +1,4 @@
+model,repo,revision,released,release_inside_test_period,context_weeks,run_at,runtime_s
+chronos_bolt,amazon/chronos-bolt-small,772f3d25d3,2024-11-25,False,512,2026-10-13 14:14,11
+chronos2,amazon/chronos-2,29ec3766d3,2025-10-30,True,512,2026-10-13 14:15,19
+timesfm,google/timesfm-2.5-200m-pytorch,1d952420fb,2025-09-02,True,512,2026-10-13 14:15,40

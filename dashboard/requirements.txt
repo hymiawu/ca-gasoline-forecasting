@@ -1,0 +1,6 @@
+streamlit>=1.45
+pandas
+numpy
+scipy
+statsmodels
+altair>=5

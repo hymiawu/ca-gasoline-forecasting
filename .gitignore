@@ -1,0 +1,13 @@
+# secrets
+.eia_key
+.env
+
+# environments and caches
+.venv*/
+__pycache__/
+.ipynb_checkpoints/
+
+# local / temporary
+.DS_Store
+~$*
+results/llm_dryrun/
