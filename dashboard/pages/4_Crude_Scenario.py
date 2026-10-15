@@ -108,8 +108,8 @@ the California price depends on its own last 4 weekly changes, the last 0–8 we
 passing through over several weeks. A permanent 10% rise in Brent raises California gasoline by about
 3% after 4 weeks and about 4% in the long run, consistent with the VAR results.
 
-**Why not ARIMAX?** The proposal planned ARIMAX for this tool, but ARIMAX only uses crude changes from the past
-4 weeks and does not let them build up over time, so it understates how much crude matters.
+**Why not ARIMAX?** The proposal planned ARIMAX for this tool, but in ARIMAX a crude change affects gasoline only
+through a few Brent lags and does not build up over time, so it understates how much crude matters.
 
 **Caveats.** Wars affect California prices mainly through crude, so a war scenario = a Brent path. The outage
 effect is estimated from only 4 events and is approximate. Intervals come from 1,000 simulated paths
