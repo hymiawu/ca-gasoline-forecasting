@@ -11,6 +11,7 @@ Setup (separate environment, needs PyTorch):
 Run:
     .venv-ai/bin/python ai_models.py                 # all models
     .venv-ai/bin/python ai_models.py chronos_bolt    # one model
+    .venv-ai/bin/python ai_models.py --validation    # validation origins (2022 - mid 2025), used to choose models
 """
 import sys
 import time
@@ -25,6 +26,7 @@ DATA = ROOT / "data" / "weekly_data.csv"
 FC_DIR = ROOT / "forecasts"
 RES_DIR = ROOT / "results"
 TRAIN_END = "2025-06-30"
+VAL_START, VAL_STEP = "2022-01-03", 4   # validation origins: every 4th week, targets end by TRAIN_END
 H = 12
 CONTEXT = 512
 QUANTILES = [0.1, 0.5, 0.9]
@@ -38,10 +40,14 @@ MODELS = {
 }
 
 
-def load_contexts():
+def load_contexts(validation=False):
     df = pd.read_csv(DATA, index_col="date", parse_dates=True).asfreq("W-MON")
     y = df["ca_gas"]
-    origins = y.loc[TRAIN_END:].index[:-1]
+    if validation:
+        idx = y.index
+        origins = idx[(idx >= VAL_START) & (idx <= pd.Timestamp(TRAIN_END) - pd.Timedelta(weeks=H))][::VAL_STEP]
+    else:
+        origins = y.loc[TRAIN_END:].index[:-1]
     contexts = [y.loc[:o].values[-CONTEXT:].astype("float32") for o in origins]
     return origins, contexts
 
@@ -77,10 +83,12 @@ def model_revision(repo):
         return ""
 
 
-def main(names):
-    origins, contexts = load_contexts()
-    print(f"{len(origins)} origins: {origins[0].date()} -> {origins[-1].date()}, context = {CONTEXT} weeks")
-    FC_DIR.mkdir(exist_ok=True); RES_DIR.mkdir(exist_ok=True)
+def main(names, validation=False):
+    origins, contexts = load_contexts(validation)
+    print(f"{len(origins)} {'validation' if validation else 'test'} origins: {origins[0].date()} -> "
+          f"{origins[-1].date()}, context = {CONTEXT} weeks")
+    out_dir = ROOT / "forecasts_validation" if validation else FC_DIR
+    out_dir.mkdir(exist_ok=True); RES_DIR.mkdir(exist_ok=True)
     log_path = RES_DIR / "ai_model_log.csv"
     log = pd.read_csv(log_path) if log_path.exists() else pd.DataFrame()
 
@@ -93,9 +101,11 @@ def main(names):
                  "forecast": q[i, h, 1], "lower80": q[i, h, 0], "upper80": q[i, h, 2]}
                 for i, o in enumerate(origins) for h in range(H)]
         out = pd.DataFrame(rows)
-        out.to_csv(FC_DIR / f"{name}.csv", index=False)
+        out.to_csv(out_dir / f"{name}.csv", index=False)
         secs = time.time() - t0
         print(f"{name}: saved {len(out)} rows in {secs:.0f}s")
+        if validation:
+            continue   # the model log describes the test-period run
 
         entry = {"model": name, "repo": spec["repo"], "revision": model_revision(spec["repo"]),
                  "released": spec["released"],
@@ -108,4 +118,5 @@ def main(names):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:] or list(MODELS))
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    main(args or list(MODELS), validation="--validation" in sys.argv)

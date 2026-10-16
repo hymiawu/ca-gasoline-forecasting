@@ -10,7 +10,7 @@ Streamlit dashboard.
 |---|---|---|
 | 1. Data | `python data_pull.py` | `data/weekly_data.csv` (+ `.xlsx`, raw series in `data/raw/`) |
 | 2. Conventional models, evaluation, VAR, asymmetry test, scenarios | `forecasting_models.ipynb` | `forecasts/*.csv`, `results/*.csv` |
-| 3. Time-series foundation models | `.venv-ai/bin/python ai_models.py` | `forecasts/chronos_bolt.csv`, `chronos2.csv`, `timesfm.csv`, `results/ai_model_log.csv` |
+| 3. Time-series foundation models | `.venv-ai/bin/python ai_models.py` and `ai_models.py --validation` | `forecasts/` and `forecasts_validation/` (`chronos_bolt`, `chronos2`, `timesfm`), `results/ai_model_log.csv` |
 | 4. LLM experiments | `.venv-ai/bin/python llm/llm_experiments.py` | `forecasts/llm_*.csv`, `results/llm_log.jsonl` |
 | 5. Dashboard | `streamlit run dashboard/Home.py` | interactive app (see `dashboard/README.md`) |
 
@@ -40,7 +40,14 @@ The notebook's evaluation and the dashboard pick up any file in this format auto
 
 ## Test design
 
-Training: May 2000 – June 30, 2025. Test: July 2025 – latest week (66 rolling origins).
-At each origin every model uses only data available that week and forecasts 1–12 weeks ahead;
+| Period | Dates | Used for |
+|---|---|---|
+| Training | May 2000 – June 2025 | Estimating models and their basic settings |
+| Validation | Forecasts every 4th week, Jan 2022 – Mar 2025 (targets end by June 2025) | Choosing between models: ARIMAX crude version, best conventional model, the combination |
+| Test | Weekly forecasts, July 2025 – latest week | Final scoring only; no choice is made by looking at it |
+
+At each forecast date every model uses only data available that week and forecasts 1–12 weeks ahead;
 4- and 12-week forecasts are scored. Models that use crude oil assume it stays at its last price.
-AI models' release dates / training cutoffs are logged for the look-ahead check.
+AI models' release dates are logged for the look-ahead check.
+
+Key results are summarized at the top of `forecasting_models.ipynb` and in `results/summary.json`.

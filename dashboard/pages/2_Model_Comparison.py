@@ -2,7 +2,8 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from common import FAMILY_COLORS, compute_dm, compute_metrics, label, load_forecasts, load_oracle
+from common import (FAMILY_COLORS, compute_dm, compute_metrics, label, load_forecasts, load_oracle, load_summary,
+                    load_validation)
 
 st.set_page_config(page_title="Model Comparison", page_icon="⛽", layout="wide")
 st.title("Model Comparison")
@@ -79,6 +80,24 @@ if not oracle.empty and horizon in oracle.index:
                f"error by {r['share_of_ARIMAX_error_from_crude']:.0%}: that share of its error is crude-price "
                "uncertainty. The rest comes from everything else (seasonality, refinery news, local shocks). This is "
                "why the dashboard treats crude as a scenario input rather than trying to forecast it.")
+
+summary, valid = load_summary(), load_validation()
+if summary and not valid.empty:
+    with st.expander("How the models were chosen (validation period, 2022 – mid 2025)"):
+        st.markdown(
+            f"Picking the model that scored best on the test period would make it look better than it really is. "
+            f"So every choice was made on a separate **validation period** (forecasts made every 4th week from "
+            f"Jan 2022, all ending by June 2025), and the test period was only used for the final scores above.\n\n"
+            f"- **ARIMAX crude version:** crude as **{summary['arimax_crude_form']}** had the lower validation error.\n"
+            f"- **Best conventional model:** {label(summary['best_conventional_validation'])} "
+            f"(the benchmark for the significance tests below).\n"
+            f"- **Combination:** average of {' and '.join(label(m) for m in summary['combo'])}.")
+        v = valid.copy()
+        v.insert(0, "Model", [label(m) for m in v.index])
+        st.dataframe(v, hide_index=True, width="stretch", column_config={
+            c: st.column_config.NumberColumn(c.replace("MAE h=", "Error, ") + (" weeks" if "h=" in c else ""),
+                                             format="$%.3f") for c in v.columns if c != "Model"})
+        st.caption("Average error (MAE, USD/gal) on the validation period. Lower is better.")
 
 st.subheader("Is the difference statistically significant?")
 candidates = [x for x in m.index if x not in ("snaive",)]

@@ -1,4 +1,5 @@
 """Shared paths, data loaders, metrics and chart helpers for the dashboard pages."""
+import json
 from pathlib import Path
 
 import altair as alt
@@ -49,6 +50,8 @@ REFINERY_MARKERS = [  # (label, date) - dashed vertical lines
 
 
 def label(model: str) -> str:
+    if model == "arimax" and load_summary().get("arimax_crude_form"):
+        return f"ARIMAX (crude as {load_summary()['arimax_crude_form']})"
     return MODEL_LABELS.get(model, model)
 
 
@@ -108,6 +111,20 @@ def compute_metrics(horizon: int) -> pd.DataFrame:
     m["Model"] = m.index.map(label)
     m["Family"] = m.index.map(family)
     return m.sort_values("MAE")
+
+
+@st.cache_data
+def load_summary() -> dict:
+    """Key numbers written by the notebook's Summary section (empty if not run yet)."""
+    f = RES_DIR / "summary.json"
+    return json.loads(f.read_text()) if f.exists() else {}
+
+
+@st.cache_data
+def load_validation() -> pd.DataFrame:
+    """Validation-period scores the notebook used to choose models."""
+    f = RES_DIR / "validation_metrics.csv"
+    return pd.read_csv(f, index_col="model") if f.exists() else pd.DataFrame()
 
 
 @st.cache_data

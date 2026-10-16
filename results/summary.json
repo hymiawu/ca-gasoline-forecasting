@@ -1,0 +1,80 @@
+{
+  "data_end": "2026-10-05",
+  "test_dates": 66,
+  "validation_dates": 43,
+  "arimax_crude_form": "levels",
+  "best_conventional_validation": "arimax",
+  "combo": [
+    "arimax",
+    "timesfm"
+  ],
+  "best_model_test": "arima_fourier",
+  "mae": {
+    "arima_fourier": {
+      "h4": 0.217,
+      "h12": 0.415
+    },
+    "arimax": {
+      "h4": 0.224,
+      "h12": 0.502
+    },
+    "chronos2": {
+      "h4": 0.273,
+      "h12": 0.575
+    },
+    "chronos_bolt": {
+      "h4": 0.277,
+      "h12": 0.579
+    },
+    "combo": {
+      "h4": 0.228,
+      "h12": 0.515
+    },
+    "ets": {
+      "h4": 0.281,
+      "h12": 0.725
+    },
+    "timesfm": {
+      "h4": 0.256,
+      "h12": 0.582
+    },
+    "naive": {
+      "h4": 0.27,
+      "h12": 0.6
+    },
+    "smean": {
+      "h4": 0.236,
+      "h12": 0.437
+    }
+  },
+  "best_vs_naive_dm_p": {
+    "h4": 0.148,
+    "h12": 0.237
+  },
+  "best_ai_test": "timesfm",
+  "granger_crude_to_gas_p": 1.3429390372748082e-09,
+  "granger_gas_to_crude_p": 0.21303670008841957,
+  "crude10_effect_4w": 0.05337910699445178,
+  "crude10_effect_12w": 0.06457318090576757,
+  "coint_p_no_trend": 0.8905140086475734,
+  "coint_p_trend": 0.0011973992528799488,
+  "asym_first_week": {
+    "up": 0.489,
+    "down": 0.245,
+    "p": 0.064
+  },
+  "asym_total": {
+    "up": 1.097,
+    "down": 1.007,
+    "p": 0.593
+  },
+  "oracle_share": {
+    "h4": 0.205,
+    "h12": 0.438
+  },
+  "summer_premium": 0.062020260864406485,
+  "naive_coverage": {
+    "h4": 0.794,
+    "h12": 0.782
+  }
+}
