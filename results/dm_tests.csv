@@ -11,6 +11,8 @@ horizon,model,vs,n,DM,p
 4,ets,naive,63,-0.18,0.858
 4,ets,arima_fourier,63,1.827,0.073
 4,naive,arima_fourier,63,1.431,0.157
+4,smean,naive,63,-1.45,0.152
+4,smean,arima_fourier,63,-0.016,0.988
 4,snaive,naive,63,2.254,0.028
 4,snaive,arima_fourier,63,2.518,0.014
 4,timesfm,naive,63,-0.997,0.323
@@ -27,6 +29,8 @@ horizon,model,vs,n,DM,p
 12,ets,naive,55,1.456,0.151
 12,ets,arima_fourier,55,1.584,0.119
 12,naive,arima_fourier,55,1.167,0.248
+12,smean,naive,55,-1.463,0.149
+12,smean,arima_fourier,55,0.512,0.611
 12,snaive,naive,55,0.313,0.755
 12,snaive,arima_fourier,55,1.116,0.269
 12,timesfm,naive,55,0.274,0.785

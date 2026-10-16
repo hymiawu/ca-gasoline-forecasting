@@ -28,7 +28,8 @@ c3.metric("California premium", f"${last.spread:.2f}/gal", f"{last.spread - prev
 c4.metric("Brent crude", f"${last.brent:.0f}/bbl", f"{last.brent - prev.brent:+.1f}", delta_color="inverse", border=True)
 
 if not fc.empty:
-    m4 = compute_metrics(4).drop(index=["naive", "snaive"], errors="ignore")
+    m4 = compute_metrics(4)
+    m4 = m4[m4["Family"] != "Benchmark"]
     best = m4.index[0]
     st.success(f"**Most accurate model (4 weeks ahead): {label(best)}** — average error "
                f"${m4.loc[best, 'MAE']:.2f}/gal, {1 - m4.loc[best, 'Skill_vs_naive']:.0%} smaller than the naive forecast.")

@@ -10,11 +10,13 @@ from scipy import stats
 ROOT = Path(__file__).resolve().parent.parent   # Project/
 DATA = ROOT / "data" / "weekly_data.csv"
 FC_DIR = ROOT / "forecasts"
+RES_DIR = ROOT / "results"
 
 TRAIN_END = pd.Timestamp("2025-06-30")
 
 MODEL_LABELS = {
     "naive": "Naive",
+    "smean": "Seasonal mean (10y)",
     "snaive": "Seasonal naive",
     "ets": "ETS",
     "arima_fourier": "ARIMA + Fourier",
@@ -29,7 +31,7 @@ MODEL_LABELS = {
     "llm_openai_anon": "ChatGPT, anonymized (LLM)",
     "llm_openai_context": "ChatGPT, full context (LLM)",
 }
-BENCHMARKS = {"naive", "snaive"}
+BENCHMARKS = {"naive", "snaive", "smean"}
 AI_PREFIXES = ("chronos", "timesfm", "llm")
 
 EVENTS = [  # (label, start, end) - shaded on the history charts
@@ -90,17 +92,29 @@ def compute_metrics(horizon: int) -> pd.DataFrame:
     d = fc[(fc["horizon"] == horizon) & fc["actual"].notna()].copy()
     d["covered"] = d["actual"].between(d["lower80"], d["upper80"])
     d["ape"] = (d["err"] / d["actual"]).abs() * 100
+    origin_price = d["origin_date"].map(load_data()["ca_gas"])
+    f_move, a_move = d["forecast"] - origin_price, d["actual"] - origin_price
+    f_dir = np.where(f_move.abs() < 1e-6, 0, np.sign(f_move))   # "no change" forecasts (naive) don't count
+    d["dir_ok"] = np.where(f_dir == 0, np.nan, (f_dir == np.sign(a_move)).astype(float))
     m = d.groupby("model").agg(
         n=("err", "size"),
         MAE=("err", lambda e: e.abs().mean()),
         RMSE=("err", lambda e: np.sqrt((e ** 2).mean())),
         MAPE=("ape", "mean"),
         Coverage80=("covered", "mean"),
+        DirAcc=("dir_ok", lambda s: s.mean() * 100),
     )
     m["Skill_vs_naive"] = m["MAE"] / m.loc["naive", "MAE"] if "naive" in m.index else np.nan
     m["Model"] = m.index.map(label)
     m["Family"] = m.index.map(family)
     return m.sort_values("MAE")
+
+
+@st.cache_data
+def load_oracle() -> pd.DataFrame:
+    """ARIMAX with flat vs realised crude (notebook section 4.3); empty if not computed yet."""
+    f = RES_DIR / "oracle_crude.csv"
+    return pd.read_csv(f, index_col="horizon") if f.exists() else pd.DataFrame()
 
 
 def dm_test(e1, e2, h, power=2):
