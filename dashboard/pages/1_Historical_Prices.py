@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 from statsmodels.tsa.seasonal import STL
 
-from common import event_layer, load_data
+from common import data_version, event_layer, load_data
 
 st.set_page_config(page_title="Historical Prices", page_icon="⛽", layout="wide")
 st.title("Historical Prices")
@@ -71,14 +71,14 @@ st.caption("Crude oil leads pump prices: most of a change in Brent shows up in C
 
 # ---- seasonality ----
 @st.cache_data
-def seasonal_by_month():
+def seasonal_by_month(version):
     train = load_data().loc[:"2025-06-30", "log_ca_gas"]
     seas = STL(train, period=52, robust=True).fit().seasonal
     return ((np.exp(seas.groupby(seas.index.month).mean()) - 1) * 100).rename("effect")
 
 
 st.subheader("Seasonal pattern")
-seas = seasonal_by_month().reset_index().rename(columns={"date": "month"})
+seas = seasonal_by_month(data_version()).reset_index().rename(columns={"date": "month"})
 seas["Month"] = pd.to_datetime(seas["month"], format="%m").dt.strftime("%b")
 bars = alt.Chart(seas).mark_bar().encode(
     x=alt.X("Month:N", sort=list(seas["Month"]), title=None),

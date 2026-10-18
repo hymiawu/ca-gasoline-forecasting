@@ -71,13 +71,48 @@ FAMILY_COLORS = alt.Scale(domain=["Benchmark", "Conventional", "AI", "Combinatio
 
 
 # ---------- data ----------
-@st.cache_data
+def data_version() -> tuple:
+    """Name, size and modification time of every data file. Cached loaders take this as an
+    argument, so the cache refreshes automatically whenever a data file is added or changed."""
+    files = [DATA, *sorted(FC_DIR.glob("*.csv")), *sorted(RES_DIR.glob("*.*"))]
+    return tuple((f.name, f.stat().st_size, int(f.stat().st_mtime)) for f in files if f.is_file())
+
+
 def load_data() -> pd.DataFrame:
+    return _load_data(data_version())
+
+
+def load_forecasts() -> pd.DataFrame:
+    return _load_forecasts(data_version())
+
+
+def load_summary() -> dict:
+    return _load_summary(data_version())
+
+
+def load_validation() -> pd.DataFrame:
+    return _load_validation(data_version())
+
+
+def load_oracle() -> pd.DataFrame:
+    return _load_oracle(data_version())
+
+
+def compute_metrics(horizon: int) -> pd.DataFrame:
+    return _compute_metrics(data_version(), horizon)
+
+
+def compute_dm(horizon: int, benchmark: str) -> pd.DataFrame:
+    return _compute_dm(data_version(), horizon, benchmark)
+
+
+@st.cache_data
+def _load_data(version) -> pd.DataFrame:
     return pd.read_csv(DATA, index_col="date", parse_dates=True).asfreq("W-MON")
 
 
 @st.cache_data
-def load_forecasts() -> pd.DataFrame:
+def _load_forecasts(version) -> pd.DataFrame:
     """All forecasts/*.csv in the shared format, with actual prices and errors attached."""
     files = sorted(FC_DIR.glob("*.csv"))
     if not files:
@@ -91,7 +126,7 @@ def load_forecasts() -> pd.DataFrame:
 
 
 @st.cache_data
-def compute_metrics(horizon: int) -> pd.DataFrame:
+def _compute_metrics(version, horizon: int) -> pd.DataFrame:
     fc = load_forecasts()
     d = fc[(fc["horizon"] == horizon) & fc["actual"].notna()].copy()
     d["covered"] = d["actual"].between(d["lower80"], d["upper80"])
@@ -115,21 +150,21 @@ def compute_metrics(horizon: int) -> pd.DataFrame:
 
 
 @st.cache_data
-def load_summary() -> dict:
+def _load_summary(version) -> dict:
     """Key numbers written by the notebook's Summary section (empty if not run yet)."""
     f = RES_DIR / "summary.json"
     return json.loads(f.read_text()) if f.exists() else {}
 
 
 @st.cache_data
-def load_validation() -> pd.DataFrame:
+def _load_validation(version) -> pd.DataFrame:
     """Validation-period scores the notebook used to choose models."""
     f = RES_DIR / "validation_metrics.csv"
     return pd.read_csv(f, index_col="model") if f.exists() else pd.DataFrame()
 
 
 @st.cache_data
-def load_oracle() -> pd.DataFrame:
+def _load_oracle(version) -> pd.DataFrame:
     """ARIMAX with flat vs realised crude (notebook section 4.3); empty if not computed yet."""
     f = RES_DIR / "oracle_crude.csv"
     return pd.read_csv(f, index_col="horizon") if f.exists() else pd.DataFrame()
@@ -148,7 +183,7 @@ def dm_test(e1, e2, h, power=2):
 
 
 @st.cache_data
-def compute_dm(horizon: int, benchmark: str) -> pd.DataFrame:
+def _compute_dm(version, horizon: int, benchmark: str) -> pd.DataFrame:
     fc = load_forecasts()
     e = fc[fc["horizon"] == horizon].pivot(index="origin_date", columns="model", values="err")
     rows = []

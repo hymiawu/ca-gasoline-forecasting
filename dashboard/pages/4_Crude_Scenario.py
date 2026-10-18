@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from common import actual_line, band_and_line, load_data
+from common import actual_line, band_and_line, data_version, load_data
 from models import event_scenario, fit_ardl, future_dates, scenario
 
 st.set_page_config(page_title="Crude Scenario", page_icon="⛽", layout="wide")
@@ -16,11 +16,11 @@ last_brent = float(df["brent"].iloc[-1])
 
 
 @st.cache_resource
-def model():
+def model(version):
     return fit_ardl(load_data())
 
 
-res = model()
+res = model(data_version())
 PRESETS = {  # label: (target USD/bbl, weeks to reach it)
     "Ceasefire ($70)": (70, 4),
     "Today's price": (round(last_brent), 1),
