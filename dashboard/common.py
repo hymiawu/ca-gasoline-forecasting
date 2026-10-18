@@ -21,6 +21,7 @@ MODEL_LABELS = {
     "snaive": "Seasonal naive",
     "ets": "ETS",
     "arima_fourier": "ARIMA + Fourier",
+    "arima_month": "ARIMA + month dummies",
     "arimax": "ARIMAX",
     "ardl": "ARDL (scenario model)",
     "combo": "Combination",
