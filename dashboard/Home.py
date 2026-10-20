@@ -7,7 +7,7 @@ Run from the Project folder:
 import pandas as pd
 import streamlit as st
 
-from common import TRAIN_END, compute_metrics, label, load_data, load_forecasts, load_summary
+from common import GAL_PER_BBL, TRAIN_END, compute_metrics, label, load_data, load_forecasts, load_summary
 
 st.set_page_config(page_title="CA Gasoline Forecasts", page_icon="⛽", layout="wide")
 
@@ -26,7 +26,8 @@ c1.metric("California regular", f"${last.ca_gas:.2f}/gal", f"{last.ca_gas - prev
 c2.metric("U.S. regular", f"${last.us_gas:.2f}/gal", f"{last.us_gas - prev.us_gas:+.2f}", delta_color="inverse", border=True)
 c3.metric("California premium", f"${last.spread:.2f}/gal", f"{last.spread - prev.spread:+.2f}", delta_color="inverse",
           border=True, help="California price minus U.S. average")
-c4.metric("Brent crude", f"${last.brent:.0f}/bbl", f"{last.brent - prev.brent:+.1f}", delta_color="inverse", border=True)
+c4.metric("Brent crude", f"${last.brent / GAL_PER_BBL:.2f}/gal", f"{(last.brent - prev.brent) / GAL_PER_BBL:+.2f}",
+          delta_color="inverse", border=True, help="Crude oil price per gallon (USD per barrel ÷ 42)")
 
 if summary:
     s = summary

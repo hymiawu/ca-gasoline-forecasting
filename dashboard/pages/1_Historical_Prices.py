@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 from statsmodels.tsa.seasonal import STL
 
-from common import data_version, event_layer, load_data
+from common import GAL_PER_BBL, data_version, event_layer, load_data
 
 st.set_page_config(page_title="Historical Prices", page_icon="⛽", layout="wide")
 st.title("Historical Prices")
@@ -57,16 +57,17 @@ st.caption("The premium has widened from about \\$0.30 before 2015 to over \\$1.
 
 # ---- crude ----
 st.subheader("California gasoline vs Brent crude")
-base = alt.Chart(d.reset_index()).encode(x=alt.X("date:T", title=None))
-gas = base.mark_line(color="#1f77b4").encode(
-    y=alt.Y("ca_gas:Q", title="California gasoline (USD/gal)", axis=alt.Axis(titleColor="#1f77b4"),
-            scale=alt.Scale(zero=False)),
-    tooltip=[alt.Tooltip("date:T", format="%Y-%m-%d"), alt.Tooltip("ca_gas:Q", format="$.2f", title="Gasoline"),
-             alt.Tooltip("brent:Q", format="$.1f", title="Brent")])
-crude = base.mark_line(color="#ff7f0e", opacity=0.8).encode(
-    y=alt.Y("brent:Q", title="Brent crude (USD/bbl)", axis=alt.Axis(titleColor="#ff7f0e"), scale=alt.Scale(zero=False)))
-st.altair_chart(alt.layer(gas, crude).resolve_scale(y="independent").properties(height=300), width="stretch")
-st.caption("Crude oil leads pump prices: most of a change in Brent shows up in California prices within 0–5 weeks.")
+gc = d.assign(brent_gal=d["brent"] / GAL_PER_BBL)[["ca_gas", "brent_gal"]] \
+    .rename(columns={"ca_gas": "California gasoline", "brent_gal": "Brent crude"})
+gc_long = gc.reset_index().melt("date", var_name="series", value_name="price")
+crude_chart = alt.Chart(gc_long).mark_line().encode(
+    x=alt.X("date:T", title=None), y=alt.Y("price:Q", title="USD/gal"),
+    color=alt.Color("series:N", title=None, scale=alt.Scale(range=["#ff7f0e", "#1f77b4"]), legend=alt.Legend(orient="top")),
+    tooltip=[alt.Tooltip("date:T", format="%Y-%m-%d"), "series", alt.Tooltip("price:Q", format="$.2f", title="USD/gal")])
+st.altair_chart(with_events(crude_chart).properties(height=300), width="stretch")
+st.caption("Both prices in USD per gallon (crude = USD per barrel ÷ 42). The gap between the lines is everything "
+           "besides crude: refining, taxes, distribution and retail margins. Crude oil leads pump prices: most of a "
+           "change in Brent shows up in California prices within 0–5 weeks.")
 
 
 # ---- seasonality ----

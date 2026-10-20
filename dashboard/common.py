@@ -14,6 +14,7 @@ FC_DIR = ROOT / "forecasts"
 RES_DIR = ROOT / "results"
 
 TRAIN_END = pd.Timestamp("2025-06-30")
+GAL_PER_BBL = 42   # crude is shown in USD per gallon (USD/bbl / 42), the same unit as gasoline
 
 MODEL_LABELS = {
     "naive": "Naive",
@@ -219,23 +220,44 @@ def event_layer(start, end, show_labels=True):
     return alt.layer(*layers)
 
 
-def band_and_line(fc: pd.DataFrame, x: str, color_field: str, title_y="USD/gal", scale=None):
-    """80% interval band + forecast line for each value of color_field."""
-    scale = scale or alt.Scale(scheme="tableau10")
-    base = alt.Chart(fc).encode(x=alt.X(f"{x}:T", title=None))
-    band = base.mark_area(opacity=0.15).encode(
-        y=alt.Y("lower80:Q", title=title_y, scale=alt.Scale(zero=False)), y2="upper80:Q",
-        color=alt.Color(f"{color_field}:N", legend=None, scale=scale))
-    line = base.mark_line(strokeWidth=2).encode(
-        y="forecast:Q", color=alt.Color(f"{color_field}:N", title=None, scale=scale, legend=alt.Legend(orient="top")),
+PALETTE = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e", "#8c564b", "#e377c2", "#17becf", "#bcbd22"]
+ACTUAL = "Actual price"
+
+
+def band_and_line(fc: pd.DataFrame, x: str, color_field: str, title_y="USD/gal", colors=None,
+                  actual: pd.Series | None = None):
+    """Forecast lines with 80% bands, plus (optionally) the actual price as a black line.
+    Every line, including the actual price, is labelled in one legend above the chart.
+    colors: optional {series name: color}; other series get colors from PALETTE."""
+    series = list(dict.fromkeys(fc[color_field]))
+    colors = dict(colors or {})
+    for s_, c in zip([s_ for s_ in series if s_ not in colors], [c for c in PALETTE if c not in colors.values()]):
+        colors[s_] = c
+    domain = ([ACTUAL] if actual is not None else []) + series
+    scale = alt.Scale(domain=domain, range=["black" if d == ACTUAL else colors[d] for d in domain])
+    color = alt.Color(f"{color_field}:N", title=None, scale=scale, legend=alt.Legend(orient="top", symbolType="stroke", symbolStrokeWidth=3,
+                                                                  symbolOpacity=1, labelFontSize=12))
+
+    lines = fc[[x, color_field, "forecast", "lower80", "upper80"]]
+    if actual is not None:
+        a = actual.rename("forecast").rename_axis(x).reset_index().assign(**{color_field: ACTUAL})
+        lines = pd.concat([a, lines], ignore_index=True)
+    band = alt.Chart(fc).mark_area(opacity=0.15).encode(
+        x=alt.X(f"{x}:T", title=None), y=alt.Y("lower80:Q", title=title_y, scale=alt.Scale(zero=False)),
+        y2="upper80:Q", color=color)   # same legend as the lines (legend=None here would hide the shared legend)
+    line = alt.Chart(lines).mark_line().encode(
+        x=alt.X(f"{x}:T", title=None), y=alt.Y("forecast:Q", scale=alt.Scale(zero=False)), color=color,
+        strokeWidth=alt.condition(f"datum['{color_field}'] == '{ACTUAL}'", alt.value(2.5), alt.value(2)),
         tooltip=[alt.Tooltip(f"{x}:T", format="%Y-%m-%d"), alt.Tooltip(f"{color_field}:N", title="series"),
-                 alt.Tooltip("forecast:Q", format="$.2f"), alt.Tooltip("lower80:Q", format="$.2f"),
+                 alt.Tooltip("forecast:Q", format="$.2f", title="price"), alt.Tooltip("lower80:Q", format="$.2f"),
                  alt.Tooltip("upper80:Q", format="$.2f")])
     return band + line
 
 
-def actual_line(df: pd.DataFrame, start=None, end=None):
-    s = df["ca_gas"].loc[start:end].rename("actual").reset_index()
-    return alt.Chart(s).mark_line(color="black", strokeWidth=2.5).encode(
-        x="date:T", y=alt.Y("actual:Q", scale=alt.Scale(zero=False)),
-        tooltip=[alt.Tooltip("date:T", format="%Y-%m-%d"), alt.Tooltip("actual:Q", format="$.3f", title="actual")])
+def vline(date, text):
+    """Dashed vertical line with a small text label at the top."""
+    d = pd.DataFrame({"x": [pd.Timestamp(date)], "text": [text]})
+    rule = alt.Chart(d).mark_rule(strokeDash=[4, 4], color="gray").encode(x="x:T")
+    lab = alt.Chart(d).mark_text(align="left", baseline="top", dx=4, dy=4, fontSize=11, color="gray").encode(
+        x="x:T", y=alt.value(0), text="text")
+    return rule + lab

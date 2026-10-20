@@ -2,7 +2,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from common import TRAIN_END, actual_line, band_and_line, label, load_data, load_forecasts
+from common import PALETTE, TRAIN_END, band_and_line, label, load_data, load_forecasts, vline
 
 st.set_page_config(page_title="Forecast Viewer", page_icon="⛽", layout="wide")
 st.title("Forecast Viewer")
@@ -27,8 +27,8 @@ tab1, tab2 = st.tabs(["Forecasts at a fixed horizon", "Forecast from one week"])
 with tab1:
     h = st.slider("Weeks ahead", 1, 12, 4)
     d = sel[sel["horizon"] == h]
-    chart = actual_line(df, "2025-01-01") + band_and_line(d, "target_date", "label")
-    split = alt.Chart(pd.DataFrame({"x": [TRAIN_END]})).mark_rule(strokeDash=[4, 4], color="gray").encode(x="x:T")
+    chart = band_and_line(d, "target_date", "label", actual=df["ca_gas"].loc["2025-01-01":])
+    split = vline(TRAIN_END, "test period starts")
     st.altair_chart((chart + split).properties(height=380).interactive(bind_y=False), width="stretch")
     st.caption(f"Each point is the forecast made {h} week(s) earlier for that date. Black: actual price. "
                "Shaded: 80% interval. Dashed line: end of the training period.")
@@ -36,7 +36,8 @@ with tab1:
     st.markdown("**Forecast error over time** (actual − forecast)")
     err = alt.Chart(d.dropna(subset=["err"])).mark_line(point=True).encode(
         x=alt.X("target_date:T", title=None), y=alt.Y("err:Q", title="USD/gal", axis=alt.Axis(format="+.1f")),
-        color=alt.Color("label:N", title=None, scale=alt.Scale(scheme="tableau10"), legend=alt.Legend(orient="top")),
+        color=alt.Color("label:N", title=None, legend=alt.Legend(orient="top"),   # same colors as the chart above
+                        scale=alt.Scale(domain=list(dict.fromkeys(d["label"])), range=PALETTE)),
         tooltip=[alt.Tooltip("target_date:T", format="%Y-%m-%d"), "label", alt.Tooltip("err:Q", format="+.3f")])
     zero = alt.Chart(pd.DataFrame({"y": [0]})).mark_rule(color="black").encode(y="y:Q")
     st.altair_chart((err + zero).properties(height=220), width="stretch")
@@ -52,8 +53,8 @@ with tab2:
     d = sel[sel["origin_date"] == origin]
     start = origin - pd.Timedelta(weeks=26)
     end = d["target_date"].max()
-    known = alt.Chart(pd.DataFrame({"x": [origin]})).mark_rule(color="gray", strokeDash=[4, 4]).encode(x="x:T")
-    chart = actual_line(df, start, end) + band_and_line(d, "target_date", "label") + known
+    known = vline(origin, "forecast made here")
+    chart = band_and_line(d, "target_date", "label", actual=df["ca_gas"].loc[start:end]) + known
     st.altair_chart(chart.properties(height=380), width="stretch")
     st.caption("What each model predicted for the next 12 weeks, using only data up to the dashed line, "
                "compared with what actually happened (black).")

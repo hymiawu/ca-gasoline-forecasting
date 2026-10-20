@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from common import actual_line, band_and_line, data_version, load_data
+from common import GAL_PER_BBL, band_and_line, data_version, load_data
 from models import event_scenario, fit_ardl, future_dates, scenario
 
 st.set_page_config(page_title="Crude Scenario", page_icon="⛽", layout="wide")
@@ -12,7 +12,8 @@ st.caption("Choose a path for Brent crude and see where California gasoline is l
            "The baseline assumes Brent stays at today's price.")
 
 df = load_data()
-last_brent = float(df["brent"].iloc[-1])
+last_brent = float(df["brent"].iloc[-1])              # USD/bbl (what the model uses)
+last_gal = round(last_brent / GAL_PER_BBL, 2)           # USD/gal (what the page shows)
 
 
 @st.cache_resource
@@ -21,14 +22,14 @@ def model(version):
 
 
 res = model(data_version())
-PRESETS = {  # label: (target USD/bbl, weeks to reach it)
-    "Ceasefire ($70)": (70, 4),
-    "Today's price": (round(last_brent), 1),
-    "War escalation ($150)": (150, 4),
-    "Oil shock ($200)": (200, 2),
+PRESETS = {  # label: (target crude price in USD/gal, weeks to reach it)
+    "Ceasefire ($1.67)": (1.67, 4),
+    "Today's price": (last_gal, 1),
+    "War escalation ($3.57)": (3.57, 4),
+    "Oil shock ($4.76)": (4.76, 2),
 }
 if "target" not in st.session_state:
-    st.session_state.target, st.session_state.weeks = round(last_brent), 4
+    st.session_state.target, st.session_state.weeks = last_gal, 4
 
 
 def apply_preset():
@@ -46,17 +47,20 @@ with left:
     H = st.slider("Weeks to forecast", 4, 26, 12)
 
     if mode == "Move to a target price":
-        target = st.slider("Target Brent price (USD/bbl)", 30, 250, key="target", step=5)
+        target = st.slider("Target Brent price (USD/gal)", 0.70, 6.00, key="target", step=0.01, format="$%.2f",
+                           help="Crude oil price per gallon (USD per barrel ÷ 42)")
         st.session_state.weeks = min(st.session_state.weeks, H)
         weeks = st.slider("Weeks to reach the target", 1, H, key="weeks")
-        path = np.r_[np.linspace(last_brent, target, weeks + 1)[1:], np.repeat(target, H - weeks)]
+        path_gal = np.r_[np.linspace(last_brent / GAL_PER_BBL, target, weeks + 1)[1:], np.repeat(target, H - weeks)]
     else:
         st.caption("Edit the weekly Brent prices below.")
         dates = future_dates(df, H)
-        start = pd.DataFrame({"week": dates.strftime("%Y-%m-%d"), "Brent (USD/bbl)": round(last_brent, 1)})
+        start = pd.DataFrame({"week": dates.strftime("%Y-%m-%d"), "Brent (USD/gal)": last_gal})
         edited = st.data_editor(start, hide_index=True, disabled=["week"], width="stretch", height=min(35 * H + 40, 420),
-                                column_config={"Brent (USD/bbl)": st.column_config.NumberColumn(min_value=1.0, step=5.0)})
-        path = edited["Brent (USD/bbl)"].astype(float).values
+                                column_config={"Brent (USD/gal)": st.column_config.NumberColumn(
+                                    min_value=0.05, step=0.05, format="$%.2f")})
+        path_gal = edited["Brent (USD/gal)"].astype(float).values
+    path = path_gal * GAL_PER_BBL   # the model works in USD/bbl
 
     st.subheader("Refinery outage")
     outage = st.toggle("Add an unplanned refinery outage",
@@ -80,23 +84,23 @@ with right:
 
     both = pd.concat([scen.assign(series="Your scenario"), base.assign(series="Baseline (Brent flat)")]) \
         .rename_axis("date").reset_index()
-    color = alt.Scale(domain=["Your scenario", "Baseline (Brent flat)"], range=["#d62728", "#1f77b4"])
-    chart = actual_line(df, df.index[-1] - pd.Timedelta(weeks=40)) + band_and_line(both, "date", "series", scale=color)
+    chart = band_and_line(both, "date", "series", colors={"Your scenario": "#d62728", "Baseline (Brent flat)": "#1f77b4"},
+                          actual=df["ca_gas"].loc[df.index[-1] - pd.Timedelta(weeks=40):])
     st.altair_chart(chart.properties(height=360, title="California regular gasoline (USD/gal)"), width="stretch")
 
-    brent = pd.concat([df["brent"].iloc[-40:], pd.Series(path, index=scen.index)]).rename("brent").rename_axis("date") \
+    brent = pd.concat([df["brent"].iloc[-40:] / GAL_PER_BBL, pd.Series(path_gal, index=scen.index)]).rename("brent").rename_axis("date") \
         .reset_index().assign(kind=lambda d: np.where(d["date"] > df.index[-1], "Scenario", "Actual"))
     bchart = alt.Chart(brent).mark_line(point=True).encode(
-        x=alt.X("date:T", title=None), y=alt.Y("brent:Q", title="USD/bbl", scale=alt.Scale(zero=False)),
+        x=alt.X("date:T", title=None), y=alt.Y("brent:Q", title="USD/gal", scale=alt.Scale(zero=False)),
         color=alt.Color("kind:N", scale=alt.Scale(domain=["Actual", "Scenario"], range=["#ff7f0e", "#d62728"]), title=None),
-        tooltip=[alt.Tooltip("date:T", format="%Y-%m-%d"), alt.Tooltip("brent:Q", format="$.1f")])
+        tooltip=[alt.Tooltip("date:T", format="%Y-%m-%d"), alt.Tooltip("brent:Q", format="$.2f", title="USD/gal")])
     st.altair_chart(bchart.properties(height=180, title="Brent crude path"), width="stretch")
 
     with st.expander("Week-by-week numbers"):
-        tbl = pd.DataFrame({"Brent (USD/bbl)": path, "Scenario": scen["forecast"], "Baseline": base["forecast"],
+        tbl = pd.DataFrame({"Brent (USD/gal)": path_gal, "Scenario": scen["forecast"], "Baseline": base["forecast"],
                             "Difference": scen["forecast"] - base["forecast"],
                             "80% low": scen["lower80"], "80% high": scen["upper80"]}, index=scen.index.strftime("%Y-%m-%d"))
-        st.dataframe(tbl.style.format({"Brent (USD/bbl)": "${:.1f}", "Difference": "{:+.2f}"} |
+        st.dataframe(tbl.style.format({"Brent (USD/gal)": "${:.2f}", "Difference": "{:+.2f}"} |
                                       {c: "${:.2f}" for c in ["Scenario", "Baseline", "80% low", "80% high"]}),
                      width="stretch")
 
@@ -114,5 +118,5 @@ through a few Brent lags and does not build up over time, so it understates how 
 **Caveats.** Wars affect California prices mainly through crude, so a war scenario = a Brent path. The outage
 effect is estimated from only 4 events and is approximate. Intervals come from 1,000 simulated paths
 (bootstrapped residuals) and do not include uncertainty about the Brent path itself.
-Last Brent price in the data: **\\${last_brent:.1f}/bbl** ({df.index[-1]:%b %d, %Y}).
+Last Brent price in the data: **\\${last_brent / GAL_PER_BBL:.2f}/gal** ({df.index[-1]:%b %d, %Y}).
 """)

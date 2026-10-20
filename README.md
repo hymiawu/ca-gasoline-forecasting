@@ -1,5 +1,9 @@
 # Forecasting California Gasoline Prices
 
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://ca-gasoline-forecasting-mtcnxfgxiyxmpgqwzx9qtw.streamlit.app)
+
+**Live dashboard:** https://ca-gasoline-forecasting-mtcnxfgxiyxmpgqwzx9qtw.streamlit.app
+
 Weekly forecasts of California regular gasoline prices, comparing conventional time-series models
 (naive, ETS, ARIMA, ARIMAX) with AI forecasters (Chronos, TimesFM, Claude, ChatGPT), plus a
 Streamlit dashboard.
