@@ -7,6 +7,14 @@ Run from the Project folder:
 import pandas as pd
 import streamlit as st
 
+import importlib
+
+import common
+
+# Reload shared modules on every run: after a code update, Streamlit Cloud reloads page files but can keep
+# old copies of imported helper modules in memory, which breaks imports of new names.
+importlib.reload(common)
+
 from common import GAL_PER_BBL, TRAIN_END, compute_metrics, label, load_data, load_forecasts, load_summary
 
 st.set_page_config(page_title="CA Gasoline Forecasts", page_icon="⛽", layout="wide")

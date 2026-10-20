@@ -3,6 +3,15 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+import importlib
+
+import common, models
+
+# Reload shared modules on every run: after a code update, Streamlit Cloud reloads page files but can keep
+# old copies of imported helper modules in memory, which breaks imports of new names.
+importlib.reload(common)
+importlib.reload(models)
+
 from common import GAL_PER_BBL, band_and_line, data_version, load_data
 from models import event_scenario, fit_ardl, future_dates, scenario
 

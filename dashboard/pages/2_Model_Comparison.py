@@ -2,6 +2,14 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+import importlib
+
+import common
+
+# Reload shared modules on every run: after a code update, Streamlit Cloud reloads page files but can keep
+# old copies of imported helper modules in memory, which breaks imports of new names.
+importlib.reload(common)
+
 from common import (FAMILY_COLORS, compute_dm, compute_metrics, label, load_forecasts, load_oracle, load_summary,
                     load_validation)
 

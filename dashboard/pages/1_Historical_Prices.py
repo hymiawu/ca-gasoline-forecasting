@@ -4,6 +4,14 @@ import pandas as pd
 import streamlit as st
 from statsmodels.tsa.seasonal import STL
 
+import importlib
+
+import common
+
+# Reload shared modules on every run: after a code update, Streamlit Cloud reloads page files but can keep
+# old copies of imported helper modules in memory, which breaks imports of new names.
+importlib.reload(common)
+
 from common import GAL_PER_BBL, data_version, event_layer, load_data
 
 st.set_page_config(page_title="Historical Prices", page_icon="⛽", layout="wide")

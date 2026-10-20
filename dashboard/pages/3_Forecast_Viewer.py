@@ -2,6 +2,14 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+import importlib
+
+import common
+
+# Reload shared modules on every run: after a code update, Streamlit Cloud reloads page files but can keep
+# old copies of imported helper modules in memory, which breaks imports of new names.
+importlib.reload(common)
+
 from common import PALETTE, TRAIN_END, band_and_line, label, load_data, load_forecasts, vline
 
 st.set_page_config(page_title="Forecast Viewer", page_icon="⛽", layout="wide")
